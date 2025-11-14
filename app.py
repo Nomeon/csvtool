@@ -1,7 +1,7 @@
 import os
 import threading
 import queue
-from tkinter import filedialog, Listbox, END
+from tkinter import filedialog
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import pandas as pd
@@ -174,130 +174,107 @@ class ProcessingThread(threading.Thread):
             self._send_message('error', f'Kritieke fout tijdens verwerking: {str(e)}')
 
 
-class BucketWidget(ttk.Frame):
-    """Custom widget representing a building number bucket with assigned files."""
+class CSVMappingRow(ttk.Frame):
+    """Custom widget representing a single CSV file with its bouwnummer assignments."""
 
-    def __init__(self, parent, bucket_id, on_delete_callback, on_file_remove_callback):
+    def __init__(self, parent, file_path, on_remove_callback, on_bouwnummers_change_callback):
         super().__init__(parent, borderwidth=1, relief="solid")
-        self.bucket_id = bucket_id
-        self.on_delete_callback = on_delete_callback
-        self.on_file_remove_callback = on_file_remove_callback
-        self.files = []
+        self.file_path = file_path
+        self.on_remove_callback = on_remove_callback
+        self.on_bouwnummers_change_callback = on_bouwnummers_change_callback
 
         self.setup_ui()
 
     def setup_ui(self):
-        """Setup the bucket widget UI."""
-        self.config(padding=10)
+        """Setup the CSV mapping row UI."""
+        self.config(padding=8)
 
-        # Header frame with building number and delete button
-        header_frame = ttk.Frame(self)
-        header_frame.pack(fill=X, pady=(0, 5))
+        # Main grid layout: Filename | Bouwnummer Entry | Parsed Display | Remove Button
+        self.columnconfigure(0, weight=2)  # Filename
+        self.columnconfigure(1, weight=2)  # Entry field
+        self.columnconfigure(2, weight=2)  # Parsed display
+        self.columnconfigure(3, weight=0)  # Remove button
 
-        # Building number label and entry
-        ttk.Label(header_frame, text="Bouwnummer:", font=("Segoe UI", 10, "bold")).pack(side=LEFT, padx=(0, 5))
-        self.building_entry = ttk.Entry(header_frame, width=15)
-        self.building_entry.pack(side=LEFT, padx=(0, 10))
-        self.building_entry.insert(0, f"BN00{self.bucket_id}")
+        # Filename label
+        filename = os.path.basename(self.file_path)
+        self.filename_label = ttk.Label(self, text=filename, font=("Segoe UI", 9), anchor=W)
+        self.filename_label.grid(row=0, column=0, sticky=W+E, padx=(5, 10))
 
-        # Delete bucket button
-        delete_btn = ttk.Button(
-            header_frame,
-            text="x Verwijder Bak",
-            bootstyle="danger-outline",
-            command=self._on_delete,
-            width=15
-        )
-        delete_btn.pack(side=RIGHT)
+        # Bouwnummers entry
+        self.bouwnummers_entry = ttk.Entry(self, font=("Segoe UI", 9))
+        self.bouwnummers_entry.grid(row=0, column=1, sticky=W+E, padx=(0, 10))
+        self.bouwnummers_entry.bind("<KeyRelease>", self._on_entry_change)
+        self.bouwnummers_entry.bind("<FocusOut>", self._on_entry_change)
 
-        # File count label
-        self.file_count_label = ttk.Label(self, text="Toegewezen Bestanden (0):", font=("Segoe UI", 9))
-        self.file_count_label.pack(anchor=W, pady=(5, 2))
-
-        # Files listbox with scrollbar
-        list_frame = ttk.Frame(self)
-        list_frame.pack(fill=BOTH, expand=YES, pady=(0, 5))
-
-        scrollbar = ttk.Scrollbar(list_frame, orient=VERTICAL)
-        self.files_listbox = Listbox(
-            list_frame,
-            height=4,
-            yscrollcommand=scrollbar.set
-        )
-        scrollbar.config(command=self.files_listbox.yview)
-
-        self.files_listbox.pack(side=LEFT, fill=BOTH, expand=YES)
-        scrollbar.pack(side=RIGHT, fill=Y)
-
-        # Remove file button
-        remove_file_btn = ttk.Button(
+        # Parsed bouwnummers display (badge style)
+        self.parsed_label = ttk.Label(
             self,
-            text="Verwijder Geselecteerd Bestand",
-            bootstyle="warning-outline",
-            command=self._on_remove_file,
-            width=30
+            text="",
+            font=("Segoe UI", 9),
+            foreground="#666",
+            anchor=W
         )
-        remove_file_btn.pack()
+        self.parsed_label.grid(row=0, column=2, sticky=W+E, padx=(0, 10))
 
-    def add_file(self, filename):
-        """Add a file to this bucket."""
-        if filename not in self.files:
-            self.files.append(filename)
-            self.files_listbox.insert(END, os.path.basename(filename))
-            self._update_file_count()
+        # Remove button
+        remove_btn = ttk.Button(
+            self,
+            text="X",
+            bootstyle="danger-outline",
+            command=self._on_remove,
+            width=5
+        )
+        remove_btn.grid(row=0, column=3, padx=(0, 5))
 
-    def remove_file(self, filename):
-        """Remove a file from this bucket."""
-        if filename in self.files:
-            idx = self.files.index(filename)
-            self.files.remove(filename)
-            self.files_listbox.delete(idx)
-            self._update_file_count()
+    def get_bouwnummers(self):
+        """Parse and return list of bouwnummers from the entry field.
 
-    def get_selected_file(self):
-        """Get the currently selected file in the listbox."""
-        selection = self.files_listbox.curselection()
-        if selection:
-            return self.files[selection[0]]
-        return None
+        Returns:
+            list: List of trimmed, non-empty bouwnummers
+        """
+        raw_text = self.bouwnummers_entry.get()
+        # Split by comma, trim whitespace, filter empty strings
+        bouwnummers = [bn.strip() for bn in raw_text.split(',') if bn.strip()]
+        return bouwnummers
 
-    def get_building_number(self):
-        """Get the building number from the entry field."""
-        return self.building_entry.get().strip()
+    def has_bouwnummers(self):
+        """Check if at least one bouwnummer is assigned."""
+        return len(self.get_bouwnummers()) > 0
 
-    def get_all_files(self):
-        """Get all files assigned to this bucket."""
-        return self.files.copy()
+    def _on_entry_change(self, event=None):
+        """Handle changes to the bouwnummers entry field."""
+        bouwnummers = self.get_bouwnummers()
 
-    def _update_file_count(self):
-        """Update the file count label."""
-        count = len(self.files)
-        self.file_count_label.config(text=f"Toegewezen Bestanden ({count}):")
+        # Update parsed display
+        if bouwnummers:
+            display_text = f"→ {len(bouwnummers)} BNs: {', '.join(bouwnummers[:3])}"
+            if len(bouwnummers) > 3:
+                display_text += f" (+{len(bouwnummers) - 3} meer)"
+            self.parsed_label.config(text=display_text, foreground="#2c5aa0")
+        else:
+            self.parsed_label.config(text="⚠ Geen bouwnummers ingevoerd", foreground="#d9534f")
 
-    def _on_delete(self):
-        """Handle bucket deletion."""
-        if self.on_delete_callback:
-            self.on_delete_callback(self.bucket_id, self.files.copy())
+        # Notify parent of change
+        if self.on_bouwnummers_change_callback:
+            self.on_bouwnummers_change_callback()
 
-    def _on_remove_file(self):
-        """Handle file removal from bucket."""
-        selected_file = self.get_selected_file()
-        if selected_file and self.on_file_remove_callback:
-            self.on_file_remove_callback(self.bucket_id, selected_file)
+    def _on_remove(self):
+        """Handle row removal."""
+        if self.on_remove_callback:
+            self.on_remove_callback(self.file_path)
 
 
 class CSVConverterApp(ttk.Window):
-    """Main application window for CSV converter with building number buckets."""
+    """Main application window for CSV converter with CSV-to-bouwnummer mapping."""
 
     def __init__(self):
         super().__init__(themename="cosmo")
 
         self.title("CSV Converter")
 
-        # Data storage
-        self.unassigned_files = []
-        self.buckets = {}  # bucket_id -> BucketWidget
-        self.bucket_counter = 1
+        # Data storage - NEW structure
+        self.csv_mappings = {}  # file_path -> CSVMappingRow widget
+        self.mapping_rows = []  # Ordered list of CSVMappingRow widgets for display
 
         # Threading and queue for processing
         self.message_queue = queue.Queue()
@@ -323,21 +300,18 @@ class CSVConverterApp(ttk.Window):
         main_container = ttk.Frame(self, padding=15)
         main_container.pack(fill=BOTH, expand=YES)
 
-        # Top row - File Selection (left) and Settings (right) side by side
+        # Top row - CSV Mapping (left) and Settings (right) side by side
         top_row = ttk.Frame(main_container)
         top_row.pack(fill=BOTH, expand=YES, pady=(0, 10))
 
-        # File Selection Section (left side)
-        self._create_file_selection_section(top_row)
+        # CSV Mapping Section (left side)
+        self._create_csv_mapping_section(top_row)
 
         # Settings Section (right side)
         self._create_settings_section(top_row)
 
         # Separator
         ttk.Separator(main_container, orient=HORIZONTAL).pack(fill=X, pady=10)
-
-        # Buckets Section (full width)
-        self._create_buckets_section(main_container)
 
         # Action Section (full width)
         self._create_action_section(main_container)
@@ -347,17 +321,20 @@ class CSVConverterApp(ttk.Window):
     # ============================================================================
 
     def get_bucket_data(self):
-        """Get all bucket data for processing.
+        """Get all CSV mapping data for processing.
 
         Returns:
             dict: {building_number: [file_paths]}
+                  Note: This returns the INVERTED structure for compatibility with ProcessingThread.
+                  Each file can have multiple bouwnummers, so the file will appear under each.
         """
         bucket_data = {}
-        for bucket in self.buckets.values():
-            bn = bucket.get_building_number()
-            files = bucket.get_all_files()
-            if bn and files:
-                bucket_data[bn] = files
+        for file_path, mapping_row in self.csv_mappings.items():
+            bouwnummers = mapping_row.get_bouwnummers()
+            for bn in bouwnummers:
+                if bn not in bucket_data:
+                    bucket_data[bn] = []
+                bucket_data[bn].append(file_path)
         return bucket_data
 
     def get_settings(self):
@@ -389,23 +366,15 @@ class CSVConverterApp(ttk.Window):
         Returns:
             tuple: (is_valid: bool, error_message: str)
         """
-        # Check unassigned files
-        if self.unassigned_files:
-            return False, f"{len(self.unassigned_files)} bestand(en) nog niet toegewezen!"
+        # Check if any CSVs exist
+        if not self.csv_mappings:
+            return False, "Geen CSV bestanden geselecteerd!"
 
-        # Check buckets exist
-        if not self.buckets:
-            return False, "Geen bakken aangemaakt!"
-
-        # Check for empty building numbers
-        for bucket in self.buckets.values():
-            if not bucket.get_building_number():
-                return False, "Sommige bakken hebben lege bouwnummers!"
-
-        # Check for duplicate building numbers
-        building_numbers = [bucket.get_building_number() for bucket in self.buckets.values()]
-        if len(building_numbers) != len(set(building_numbers)):
-            return False, "Dubbele bouwnummers gevonden!"
+        # Check that all CSVs have at least one bouwnummer
+        for file_path, mapping_row in self.csv_mappings.items():
+            if not mapping_row.has_bouwnummers():
+                filename = os.path.basename(file_path)
+                return False, f"'{filename}' heeft geen bouwnummers toegewezen!"
 
         # Check required settings
         settings = self.get_settings()
@@ -421,102 +390,69 @@ class CSVConverterApp(ttk.Window):
     # UI CREATION METHODS
     # ============================================================================
 
-    def _create_file_selection_section(self, parent):
-        """Create the file selection section."""
-        section_frame = ttk.LabelFrame(parent, text="BESTANDSELECTIE", padding=15, bootstyle="primary")
+    def _create_csv_mapping_section(self, parent):
+        """Create the CSV mapping section."""
+        section_frame = ttk.LabelFrame(parent, text="CSV BESTANDEN & BOUWNUMMERS", padding=15, bootstyle="primary")
         section_frame.pack(side=LEFT, fill=BOTH, expand=YES, padx=(0, 10))
 
-        # Top row: Select button and file count
+        # Top row: Add CSV button and summary
         top_row = ttk.Frame(section_frame)
         top_row.pack(fill=X, pady=(0, 10))
 
-        select_btn = ttk.Button(
+        add_csv_btn = ttk.Button(
             top_row,
-            text="Selecteer CSVs",
-            bootstyle="primary",
-            command=self._on_select_files,
+            text="+ CSV Toevoegen",
+            bootstyle="success",
+            command=self._on_add_csv_files,
             width=20
         )
-        select_btn.pack(side=LEFT, padx=(0, 10))
+        add_csv_btn.pack(side=LEFT, padx=(0, 10))
 
-        self.file_count_label = ttk.Label(top_row, text="Bestanden: 0 geselecteerd", font=("Segoe UI", 10))
-        self.file_count_label.pack(side=LEFT)
-
-        # Unassigned files label
-        ttk.Label(section_frame, text="Onverdeelde Bestanden:", font=("Segoe UI", 10, "bold")).pack(anchor=W, pady=(5, 2))
-
-        # Listbox with scrollbar
-        list_frame = ttk.Frame(section_frame)
-        list_frame.pack(fill=BOTH, expand=YES, pady=(0, 10))
-
-        scrollbar = ttk.Scrollbar(list_frame, orient=VERTICAL)
-        self.unassigned_listbox = Listbox(
-            list_frame,
-            height=10,
-            yscrollcommand=scrollbar.set
+        self.summary_label = ttk.Label(
+            top_row,
+            text="0 CSVs → 0 bouwnummers",
+            font=("Segoe UI", 10, "bold"),
+            foreground="#2c5aa0"
         )
-        scrollbar.config(command=self.unassigned_listbox.yview)
+        self.summary_label.pack(side=LEFT)
 
-        self.unassigned_listbox.pack(side=LEFT, fill=BOTH, expand=YES)
-        scrollbar.pack(side=RIGHT, fill=Y)
+        # Table header
+        header_frame = ttk.Frame(section_frame)
+        header_frame.pack(fill=X, pady=(5, 2))
 
-        # Assignment controls
-        assign_frame = ttk.Frame(section_frame)
-        assign_frame.pack(fill=X)
+        header_frame.columnconfigure(0, weight=2)
+        header_frame.columnconfigure(1, weight=2)
+        header_frame.columnconfigure(2, weight=2)
+        header_frame.columnconfigure(3, weight=0)
 
-        ttk.Label(assign_frame, text="Aan:").pack(side=LEFT, padx=(0, 5))
+        ttk.Label(header_frame, text="Bestandsnaam", font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky=W, padx=(5, 10))
+        ttk.Label(header_frame, text="Bouwnummers (gescheiden door komma)", font=("Segoe UI", 9, "bold")).grid(row=0, column=1, sticky=W, padx=(0, 10))
+        ttk.Label(header_frame, text="Controle", font=("Segoe UI", 9, "bold")).grid(row=0, column=2, sticky=W, padx=(0, 10))
+        ttk.Label(header_frame, text="", font=("Segoe UI", 9, "bold")).grid(row=0, column=3)
 
-        self.bucket_selector = ttk.Combobox(assign_frame, state="readonly", width=15)
-        self.bucket_selector.pack(side=LEFT, padx=(0, 10))
+        # Separator after header
+        ttk.Separator(section_frame, orient=HORIZONTAL).pack(fill=X, pady=(2, 5))
 
-        assign_btn = ttk.Button(
-            assign_frame,
-            text="Toevoegen",
-            bootstyle="success",
-            command=self._on_assign_file
-        )
-        assign_btn.pack(side=LEFT)
-
-    def _create_buckets_section(self, parent):
-        """Create the buckets section with horizontal scrollable container."""
-        section_frame = ttk.LabelFrame(parent, text="BOUWNUMMER BAKKEN", padding=15, bootstyle="info")
-        section_frame.pack(fill=BOTH, expand=YES, pady=(0, 5))
-
-        # Add bucket button
-        add_btn_frame = ttk.Frame(section_frame)
-        add_btn_frame.pack(fill=X, pady=(0, 10))
-
-        add_bucket_btn = ttk.Button(
-            add_btn_frame,
-            text="+ Bak Toevoegen",
-            bootstyle="success-outline",
-            command=self._on_add_bucket,
-            width=15
-        )
-        add_bucket_btn.pack(side=RIGHT)
-
-        # Horizontal scrollable frame for buckets
+        # Scrollable frame for CSV mapping rows
         scroll_container = ttk.Frame(section_frame)
         scroll_container.pack(fill=BOTH, expand=YES)
 
-        # Horizontal scrollbar
-        h_scrollbar = ttk.Scrollbar(scroll_container, orient=HORIZONTAL)
-        h_scrollbar.pack(side=BOTTOM, fill=X)
+        # Vertical scrollbar
+        v_scrollbar = ttk.Scrollbar(scroll_container, orient=VERTICAL)
+        v_scrollbar.pack(side=RIGHT, fill=Y)
 
-        # Canvas for horizontal scrolling
-        self.buckets_canvas = ttk.Canvas(scroll_container, height=250, xscrollcommand=h_scrollbar.set)
-        self.buckets_canvas.pack(side=TOP, fill=BOTH, expand=YES)
-        h_scrollbar.config(command=self.buckets_canvas.xview)
+        # Canvas for scrolling
+        self.mappings_canvas = ttk.Canvas(scroll_container, yscrollcommand=v_scrollbar.set, height=300)
+        self.mappings_canvas.pack(side=LEFT, fill=BOTH, expand=YES)
+        v_scrollbar.config(command=self.mappings_canvas.yview)
 
-        # Inner frame to hold buckets horizontally
-        self.buckets_container = ttk.Frame(self.buckets_canvas)
-        self.canvas_window = self.buckets_canvas.create_window((0, 0), window=self.buckets_container, anchor=NW)
+        # Inner frame to hold mapping rows
+        self.mappings_container = ttk.Frame(self.mappings_canvas)
+        self.canvas_window = self.mappings_canvas.create_window((0, 0), window=self.mappings_container, anchor=NW)
 
         # Bind to configure events to update scroll region
-        self.buckets_container.bind("<Configure>", self._on_buckets_configure)
-
-        # Add initial bucket
-        self._add_bucket_widget()
+        self.mappings_container.bind("<Configure>", self._on_mappings_configure)
+        self.mappings_canvas.bind("<Configure>", self._on_canvas_configure)
 
     def _create_settings_section(self, parent):
         """Create the settings section."""
@@ -648,13 +584,14 @@ class CSVConverterApp(ttk.Window):
         section_frame = ttk.Frame(parent, padding=10)
         section_frame.pack(fill=X)
 
-        # Process button
+        # Process button (starts disabled)
         self.process_btn = ttk.Button(
             section_frame,
             text="Verwerk alle bestanden",
             bootstyle="success",
             command=self._on_process,
-            width=30
+            width=30,
+            state='disabled'
         )
         self.process_btn.pack(pady=(0, 10))
 
@@ -681,93 +618,44 @@ class CSVConverterApp(ttk.Window):
     # EVENT HANDLERS - UI Interactions
     # ============================================================================
 
-    def _on_select_files(self):
-        """Handle file selection."""
+    def _on_add_csv_files(self):
+        """Handle adding CSV files."""
         files = filedialog.askopenfilenames(
-            title="Selecteer CSV Files",
+            title="Selecteer CSV bestanden",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
         )
 
         if files:
-            for file in files:
-                if file not in self.unassigned_files:
-                    self.unassigned_files.append(file)
-                    self.unassigned_listbox.insert(END, os.path.basename(file))
+            added_count = 0
+            for file_path in files:
+                # Prevent duplicate files
+                if file_path not in self.csv_mappings:
+                    self._add_mapping_row(file_path)
+                    added_count += 1
 
-            self._update_file_count()
-            self._update_status(f"{len(files)} bestand(en) toegevoegd")
+            if added_count > 0:
+                self._update_summary()
+                self._update_status(f"{added_count} bestand(en) toegevoegd")
+            else:
+                self._update_status("Alle geselecteerde bestanden zijn al toegevoegd", error=True)
 
-    def _on_add_bucket(self):
-        """Handle adding a new bucket."""
-        self._add_bucket_widget()
-        self._update_status(f"Nieuwe bak toegevoegd")
+    def _on_remove_csv(self, file_path):
+        """Handle CSV row removal."""
+        if file_path in self.csv_mappings:
+            # Remove and destroy widget
+            mapping_row = self.csv_mappings[file_path]
+            mapping_row.destroy()
+            del self.csv_mappings[file_path]
+            self.mapping_rows.remove(mapping_row)
 
-    def _on_delete_bucket(self, bucket_id, files):
-        """Handle bucket deletion."""
-        if bucket_id in self.buckets:
-            # Return files to unassigned list
-            for file in files:
-                if file not in self.unassigned_files:
-                    self.unassigned_files.append(file)
-                    self.unassigned_listbox.insert(END, os.path.basename(file))
+            self._update_summary()
+            self._validate_and_update_button()
+            self._update_status(f"Bestand verwijderd")
 
-            # Delete widget
-            self.buckets[bucket_id].destroy()
-            del self.buckets[bucket_id]
-
-            self._update_bucket_selector()
-            self._update_file_count()
-            self._update_status(f"Bak verwijderd, {len(files)} bestand(en) terug naar onverdeeld")
-
-    def _on_remove_file_from_bucket(self, bucket_id, filename):
-        """Handle file removal from bucket."""
-        if bucket_id in self.buckets:
-            self.buckets[bucket_id].remove_file(filename)
-
-            # Return to unassigned
-            if filename not in self.unassigned_files:
-                self.unassigned_files.append(filename)
-                self.unassigned_listbox.insert(END, os.path.basename(filename))
-
-            self._update_file_count()
-            self._update_status("Bestand terug naar onverdeeld")
-
-    def _on_assign_file(self):
-        """Handle file assignment to bucket."""
-        # Get selected file
-        selection = self.unassigned_listbox.curselection()
-        if not selection:
-            self._update_status("Selecteer een bestand om toe te wijzen", error=True)
-            return
-
-        file_idx = selection[0]
-        filename = self.unassigned_files[file_idx]
-
-        # Get selected bucket
-        bucket_selection = self.bucket_selector.get()
-        if not bucket_selection:
-            self._update_status("Selecteer een bak", error=True)
-            return
-
-        # Find bucket by building number
-        target_bucket = None
-        for bucket in self.buckets.values():
-            if bucket_selection in bucket.get_building_number():
-                target_bucket = bucket
-                break
-
-        if target_bucket:
-            # Add file to bucket
-            target_bucket.add_file(filename)
-
-            # Remove from unassigned
-            self.unassigned_files.pop(file_idx)
-            self.unassigned_listbox.delete(file_idx)
-
-            self._update_file_count()
-            self._update_status(f"Bestand toegewezen aan {bucket_selection}")
-        else:
-            self._update_status("Bak niet gevonden", error=True)
+    def _on_bouwnummers_change(self):
+        """Handle changes to any bouwnummer field."""
+        self._update_summary()
+        self._validate_and_update_button()
 
     def _on_process(self):
         """Handle process button click - entry point for processing."""
@@ -872,38 +760,43 @@ class CSVConverterApp(ttk.Window):
     # UTILITY METHODS - Internal helpers
     # ============================================================================
 
-    def _add_bucket_widget(self):
-        """Create and add a new bucket widget."""
-        bucket_widget = BucketWidget(
-            self.buckets_container,
-            self.bucket_counter,
-            self._on_delete_bucket,
-            self._on_remove_file_from_bucket
+    def _add_mapping_row(self, file_path):
+        """Create and add a new CSV mapping row."""
+        mapping_row = CSVMappingRow(
+            self.mappings_container,
+            file_path,
+            self._on_remove_csv,
+            self._on_bouwnummers_change
         )
-        # Pack horizontally (left to right)
-        bucket_widget.pack(side=LEFT, fill=Y, pady=5, padx=5)
+        mapping_row.pack(fill=X, pady=2)
 
-        self.buckets[self.bucket_counter] = bucket_widget
-        self.bucket_counter += 1
+        self.csv_mappings[file_path] = mapping_row
+        self.mapping_rows.append(mapping_row)
 
-        self._update_bucket_selector()
+    def _on_mappings_configure(self, event=None):
+        """Update canvas scroll region when mappings container changes."""
+        self.mappings_canvas.configure(scrollregion=self.mappings_canvas.bbox("all"))
 
-    def _on_buckets_configure(self, event=None):
-        """Update canvas scroll region when buckets container changes."""
-        self.buckets_canvas.configure(scrollregion=self.buckets_canvas.bbox("all"))
+    def _on_canvas_configure(self, event):
+        """Update the inner frame width when canvas is resized."""
+        canvas_width = event.width
+        self.mappings_canvas.itemconfig(self.canvas_window, width=canvas_width)
 
-    def _update_file_count(self):
-        """Update the file count label."""
-        total_assigned = sum(len(bucket.get_all_files()) for bucket in self.buckets.values())
-        total_files = len(self.unassigned_files) + total_assigned
-        self.file_count_label.config(text=f"Bestanden: {total_files} geselecteerd ({len(self.unassigned_files)} onverdeeld, {total_assigned} toegewezen)")
+    def _update_summary(self):
+        """Update the summary label showing CSV count and total bouwnummers."""
+        csv_count = len(self.csv_mappings)
+        total_bouwnummers = sum(len(row.get_bouwnummers()) for row in self.csv_mappings.values())
 
-    def _update_bucket_selector(self):
-        """Update the bucket selector dropdown."""
-        building_numbers = [bucket.get_building_number() for bucket in self.buckets.values()]
-        self.bucket_selector['values'] = building_numbers
-        if building_numbers:
-            self.bucket_selector.current(0)
+        self.summary_label.config(text=f"{csv_count} CSVs → {total_bouwnummers} bouwnummers")
+
+    def _validate_and_update_button(self):
+        """Validate configuration and enable/disable process button accordingly."""
+        is_valid, _ = self.validate_configuration()
+
+        if is_valid:
+            self.process_btn.config(state='normal')
+        else:
+            self.process_btn.config(state='disabled')
 
     def _update_status(self, message, error=False):
         """Update the status label."""
