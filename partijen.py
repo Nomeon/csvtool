@@ -14,7 +14,7 @@ def BB(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     """
     project, bouwnummer = df["Projectnummer"].iloc[0], df["Bouwnummer"].iloc[0]
 
-    df = df[~df["Productcode"].apply(helpers.delete_productcode)]
+    df = df[~(df["Voorraad"].str.strip().str.lower() == "ja")]
     df = df[df["Productnaam"].str.contains("LVLQ 90|LVLQ 100|LVLQ 144|LVLQ 69") | ((df["Productnaam"].str.contains("LVLS 45")) & (df["Lengte"] > 3360)) | ((df["Productnaam"].str.contains("SPANO 18")) & (df["Lengte"] > 2700)) | df["Materiaal"].str.contains("BAUB")]
 
     if df.empty:
@@ -88,8 +88,8 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     bouwnummer_kort = bouwnummer
     if bouwnummer.startswith("BN"):
         bouwnummer_kort = bouwnummer.replace("BN", "")
-   
-    df = df[~df["Productcode"].apply(helpers.delete_productcode)]
+
+    df = df[~(df["Voorraad"].str.strip().str.lower() == "ja")]
     df = df[~(df["Productnaam"].str.contains("LVLQ 90|LVLQ 100|LVLQ 144|LVLQ 69") | ((df["Productnaam"].str.contains("LVLS 45")) & (df["Lengte"] > 3360)) | ((df["Productnaam"].str.contains("SPANO 18")) & (df["Lengte"] > 2700)) | df["Materiaal"].str.contains("BAUB"))]
     df = df[~df["Materiaal"].str.contains("PRO|FERM")]
 
@@ -319,9 +319,6 @@ def ERP(df: pd.DataFrame, path: str) -> None:
     """
     project, bouwnummer = df["Projectnummer"].iloc[0], df["Bouwnummer"].iloc[0]
 
-    df["Voorraad"] = df["Productcode"].apply(lambda x: helpers.delete_productcode(x))
-    df["Voorraad"] = np.where(df["Voorraad"], "Ja", "Nee")
-
     df_unit = df[df["Eenheid"] == "unit"]
     df_metric = df[df["Eenheid"] != "unit"]
 
@@ -460,8 +457,7 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
     if df.empty:
         return
 
-    # Filter out ERP products (Voorraad = "Ja")
-    df = df[~df["Productcode"].apply(helpers.delete_productcode)]
+    df = df[~(df["Voorraad"].str.strip().str.lower() == "ja")]
 
     if df.empty:
         return

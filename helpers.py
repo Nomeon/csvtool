@@ -136,22 +136,6 @@ def combine_dfs(df_list: list) -> pd.DataFrame:
     df = df[~df['Station'].isin(['WS99', 'WS199'])]
     return df
 
-def delete_productcode(column: str) -> bool:
-    """Checks if the column is a voorraadproduct.
-
-    Args:
-        column (str): The column.
-
-    Returns:
-        bool: True if the column is a voorraadproduct.
-    """
-    included = (
-        "EP" in column
-        or "SP" in column
-        or not re.match(r"[A-Z]{2}-\d{6}-\d{4}", column)
-    )
-    return included
-
 
 def get_dikte(column: str) -> int:
     """Gets the dikte from the column.

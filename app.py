@@ -270,7 +270,14 @@ class CSVConverterApp(ttk.Window):
     def __init__(self):
         super().__init__(themename="cosmo")
 
-        self.title("CSV Converter")
+        self.title("CSV Converter 1.0.1")
+
+        # Set window icon
+        try:
+            icon_path = helpers.resource_path("assets/gewoonhout.ico")
+            self.iconbitmap(icon_path)
+        except Exception as e:
+            print(f"Warning: Could not load icon: {e}")
 
         # Data storage - NEW structure
         self.csv_mappings = {}  # file_path -> CSVMappingRow widget
@@ -375,14 +382,6 @@ class CSVConverterApp(ttk.Window):
             if not mapping_row.has_bouwnummers():
                 filename = os.path.basename(file_path)
                 return False, f"'{filename}' heeft geen bouwnummers toegewezen!"
-
-        # Check required settings
-        settings = self.get_settings()
-        if not settings['project_number']:
-            return False, "Geen projectnummer ingevuld!"
-
-        if not settings['output_path']:
-            return False, "Geen output map geselecteerd!"
 
         return True, ""
 
