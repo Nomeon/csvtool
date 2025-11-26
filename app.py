@@ -651,16 +651,30 @@ class CSVConverterApp(ttk.Window):
         section_frame = ttk.Frame(parent, padding=10)
         section_frame.pack(fill=X)
 
+        # Button container for process and reset buttons side by side
+        button_container = ttk.Frame(section_frame)
+        button_container.pack(pady=(0, 10))
+
         # Process button (starts disabled)
         self.process_btn = ttk.Button(
-            section_frame,
+            button_container,
             text="Verwerk alle bestanden",
             bootstyle="success",
             command=self._on_process,
             width=30,
             state='disabled'
         )
-        self.process_btn.pack(pady=(0, 10))
+        self.process_btn.pack(side=LEFT, padx=(0, 10))
+
+        # Reset button
+        self.reset_btn = ttk.Button(
+            button_container,
+            text="Reset",
+            bootstyle="secondary-outline",
+            command=self._on_reset,
+            width=15
+        )
+        self.reset_btn.pack(side=LEFT)
 
         # Progress bar
         self.progress_bar = ttk.Progressbar(
@@ -751,6 +765,36 @@ class CSVConverterApp(ttk.Window):
         # Start processing in background thread
         self._start_processing(bucket_data, settings)
         self._update_status("Verwerking gestart...")
+
+    def _on_reset(self):
+        """Handle reset button click - clear all state and reset UI."""
+        # Don't allow reset during processing
+        if self.is_processing:
+            self._update_status("Kan niet resetten tijdens verwerking...", error=True)
+            return
+
+        # Clear all CSV mappings
+        for file_path in list(self.csv_mappings.keys()):
+            mapping_row = self.csv_mappings[file_path]
+            mapping_row.destroy()
+            del self.csv_mappings[file_path]
+
+        self.mapping_rows.clear()
+
+        # Reset progress bar
+        self.progress_bar['value'] = 0
+
+        # Reset status label
+        self.status_label.config(text="Status: Gereed", foreground="#000000")
+
+        # Reset processing flag
+        self.is_processing = False
+
+        # Update summary and button state
+        self._update_summary()
+        self._validate_and_update_button()
+
+        self._update_status("Tool gereset - klaar voor nieuwe verwerking")
 
     def _browse_file(self, entry_widget):
         """Browse for a file."""
