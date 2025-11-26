@@ -347,8 +347,8 @@ def ERP(df: pd.DataFrame, path: str) -> None:
     print(f"[ERP] Starting - DataFrame shape: {df.shape}, Bouwnummer: {bouwnummer}")
     print(f"[ERP] Eenheid NaN count: {df['Eenheid'].isna().sum()}")
 
-    df_unit = df[df["Eenheid"] == "unit"]
-    df_metric = df[df["Eenheid"] != "unit"]
+    df_unit = df[df["Eenheid"].isin(["unit", "Each"])]
+    df_metric = df[~df["Eenheid"].isin(["unit", "Each"])]
 
     # Compression on units
     df_unit = df_unit.sort_values(by=["Productnaam", "Station", "Dikte", "Breedte", "Lengte"])
@@ -414,9 +414,9 @@ def WS198(df: pd.DataFrame, path: str) -> None:
     df = df[df["Station"] == "WS198"]
     if df.empty:
         return
-    
-    df_unit = df[df["Eenheid"] == "unit"]
-    df_metric = df[df["Eenheid"] != "unit"]
+
+    df_unit = df[df["Eenheid"].isin(["unit", "Each"])]
+    df_metric = df[~df["Eenheid"].isin(["unit", "Each"])]
 
     # Compression on units
     df_unit = df_unit.sort_values(by=["Productnaam", "Station", "Dikte", "Breedte", "Lengte"])
@@ -507,8 +507,8 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
     )
     df["Leverancier"] = np.where(bb_mask, "BB", "VH")
 
-    df_unit = df[df["Eenheid"] == "unit"]
-    df_metric = df[df["Eenheid"] != "unit"]
+    df_unit = df[df["Eenheid"].isin(["unit", "Each"])]
+    df_metric = df[~df["Eenheid"].isin(["unit", "Each"])]
 
     # Compression on units
     df_unit = df_unit.sort_values(by=["Productnaam", "Station", "Dikte", "Breedte", "Lengte"])

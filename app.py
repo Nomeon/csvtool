@@ -462,6 +462,15 @@ class CSVConverterApp(ttk.Window):
         section_frame = ttk.LabelFrame(parent, text="CSV BESTANDEN & BOUWNUMMERS", padding=15, bootstyle="primary")
         section_frame.pack(side=LEFT, fill=BOTH, expand=YES, padx=(0, 10))
 
+        # Warning label
+        warning_label = ttk.Label(
+            section_frame,
+            text="Let op! Vul bloknummer + bouwnummer in, dus b.v. A1-01, A1-02.",
+            font=("Segoe UI", 9),
+            foreground="#d9534f"
+        )
+        warning_label.pack(anchor=W, pady=(0, 5))
+
         # Top row: Add CSV button and summary
         top_row = ttk.Frame(section_frame)
         top_row.pack(fill=X, pady=(0, 10))

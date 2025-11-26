@@ -85,13 +85,17 @@ def csv_to_df(file: str) -> pd.DataFrame:
 
             fixed_value = f"{value_num:.{decimals}f}"
 
-            # Debug logging for specific productcode
-            if productcode == "C00012":
-                print(f"Fixed weight: {value} -> {fixed_value}")
-
             return fixed_value
         except (ValueError, TypeError):
             return "0.0"
+
+    # Fill Modulenaam column with Projectnummer-Bouwnummer-Moduletype
+    df['Modulenaam'] = df.apply(
+        lambda row: f"{row['Projectnummer']}-{row['Bouwnummer']}-{row['Moduletype']}"
+        if pd.isna(row['Modulenaam']) or row['Modulenaam'] == ""
+        else row['Modulenaam'],
+        axis=1
+    )
 
     # Apply preprocessing to DataFrame
     processed_df = pd.DataFrame()
@@ -107,11 +111,11 @@ def csv_to_df(file: str) -> pd.DataFrame:
     processed_df['Dikte'] = df['Dikte'].apply(fix_dimensions)
     processed_df['Breedte'] = df['Breedte'].apply(fix_dimensions)
     processed_df['Lengte'] = df['Lengte'].apply(fix_dimensions)
-    processed_df['Gewicht'] = df.apply(lambda row: fix_weight(row['Gewicht'], row['Productcode']), axis=1)
-    processed_df['Materiaal'] = df['Materiaal']
+    processed_df['Gewicht'] = df.apply(lambda row: fix_weight(row['Mass'], row['Productcode']), axis=1) # Gewicht naar Mass
+    processed_df['Materiaal'] = df['Material'] # Materiaal naar Material
     processed_df['Station'] = df['Station']
-    processed_df['Aantal'] = df.apply(lambda row: fix_aantal(row['QTY'], row['Eenheid']), axis=1)
-    processed_df['Eenheid'] = df['Eenheid']
+    processed_df['Aantal'] = df.apply(lambda row: fix_aantal(row['QTY'], row['Base Unit']), axis=1)
+    processed_df['Eenheid'] = df['Base Unit'] # Eenheid naar Base Unit
     processed_df['Voorraad'] = df['Voorraad']
 
     return processed_df
