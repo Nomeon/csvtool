@@ -1,6 +1,7 @@
 import os
 import threading
 import queue
+import traceback
 from tkinter import filedialog
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
@@ -120,30 +121,60 @@ class ProcessingThread(threading.Thread):
 
             # Generate VH Meterkast CSV (if enabled and meterkast data available)
             if self.settings['generate_vh'] and meterkast:
-                self._send_message('status', 'Genereren VH Meterkast CSV...')
-                partijen.VH(df=df, ordernummer=vhorder, path=output_path, prio_dict=prio,
-                          bulk_file=bulkvh, meterkast_file=meterkast, bulk=False, meterkast=True)
+                try:
+                    print(f"[DEBUG] Calling VH Meterkast")
+                    self._send_message('status', 'Genereren VH Meterkast CSV...')
+                    partijen.VH(df=df, ordernummer=vhorder, path=output_path, prio_dict=prio,
+                              bulk_file=bulkvh, meterkast_file=meterkast, bulk=False, meterkast=True)
+                except Exception as e:
+                    error_msg = f"VH Meterkast failed: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                    self._send_message('error', error_msg)
+                    print(error_msg)
 
             # Generate BULK files (across all buildings)
             if self.settings['generate_bb'] and bulkbb:
-                self._send_message('status', 'Genereren BB BULK CSV...')
-                partijen.BB(df=df, ordernummer=bborder, path=output_path, prio_dict=prio,
-                          bulk_file=bulkbb, bulk=True)
+                try:
+                    print(f"[DEBUG] Calling BB BULK")
+                    self._send_message('status', 'Genereren BB BULK CSV...')
+                    partijen.BB(df=df, ordernummer=bborder, path=output_path, prio_dict=prio,
+                              bulk_file=bulkbb, bulk=True)
+                except Exception as e:
+                    error_msg = f"BB BULK failed: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                    self._send_message('error', error_msg)
+                    print(error_msg)
 
             if self.settings['generate_vh'] and bulkvh:
-                self._send_message('status', 'Genereren VH BULK CSV...')
-                partijen.VH(df=df, ordernummer=vhorder, path=output_path, prio_dict=prio,
-                          bulk_file=bulkvh, meterkast_file=meterkast, bulk=True)
+                try:
+                    print(f"[DEBUG] Calling VH BULK")
+                    self._send_message('status', 'Genereren VH BULK CSV...')
+                    partijen.VH(df=df, ordernummer=vhorder, path=output_path, prio_dict=prio,
+                              bulk_file=bulkvh, meterkast_file=meterkast, bulk=True)
+                except Exception as e:
+                    error_msg = f"VH BULK failed: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                    self._send_message('error', error_msg)
+                    print(error_msg)
 
             if self.settings['generate_vmg'] and bulkvmg:
-                self._send_message('status', 'Genereren VMG BULK CSV...')
-                partijen.VMG(df=df, ordernummer=vmgorder, path=output_path, prio_dict=prio,
-                           bulk_file=bulkvmg, bulk=True)
+                try:
+                    print(f"[DEBUG] Calling VMG BULK")
+                    self._send_message('status', 'Genereren VMG BULK CSV...')
+                    partijen.VMG(df=df, ordernummer=vmgorder, path=output_path, prio_dict=prio,
+                               bulk_file=bulkvmg, bulk=True)
+                except Exception as e:
+                    error_msg = f"VMG BULK failed: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                    self._send_message('error', error_msg)
+                    print(error_msg)
 
             # Generate Houtlijst for all buildings combined
             if self.settings['generate_houtlijst']:
-                self._send_message('status', 'Genereren Houtlijst...')
-                partijen.Houtlijst(df=df, path=output_path)
+                try:
+                    print(f"[DEBUG] Calling Houtlijst")
+                    self._send_message('status', 'Genereren Houtlijst...')
+                    partijen.Houtlijst(df=df, path=output_path)
+                except Exception as e:
+                    error_msg = f"Houtlijst failed: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                    self._send_message('error', error_msg)
+                    print(error_msg)
 
             # Generate per-building outputs
             for idx, bn in enumerate(bns):
@@ -151,27 +182,64 @@ class ProcessingThread(threading.Thread):
                 df_bn = df[df["Bouwnummer"] == bn]
 
                 if self.settings['generate_erp']:
-                    partijen.ERP(df=df_bn, path=output_path)
+                    try:
+                        print(f"[DEBUG] Calling ERP for {bn}")
+                        partijen.ERP(df=df_bn, path=output_path)
+                    except Exception as e:
+                        error_msg = f"ERP failed for {bn}: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                        self._send_message('error', error_msg)
+                        print(error_msg)
 
                 if self.settings['generate_ws198']:
-                    partijen.WS198(df=df_bn, path=output_path)
+                    try:
+                        print(f"[DEBUG] Calling WS198 for {bn}")
+                        partijen.WS198(df=df_bn, path=output_path)
+                    except Exception as e:
+                        error_msg = f"WS198 failed for {bn}: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                        self._send_message('error', error_msg)
+                        print(error_msg)
 
                 if self.settings['generate_bb']:
-                    partijen.BB(df=df_bn, ordernummer=bborder, path=output_path, prio_dict=prio,
-                              bulk_file=bulkbb, bulk=False)
+                    try:
+                        print(f"[DEBUG] Calling BB for {bn}")
+                        partijen.BB(df=df_bn, ordernummer=bborder, path=output_path, prio_dict=prio,
+                                  bulk_file=bulkbb, bulk=False)
+                    except Exception as e:
+                        error_msg = f"BB failed for {bn}: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                        self._send_message('error', error_msg)
+                        print(error_msg)
 
                 if self.settings['generate_vh']:
-                    partijen.VH(df=df_bn, ordernummer=vhorder, path=output_path, prio_dict=prio,
-                              bulk_file=bulkvh, meterkast_file=meterkast, bulk=False)
+                    try:
+                        print(f"[DEBUG] Calling VH for {bn}")
+                        partijen.VH(df=df_bn, ordernummer=vhorder, path=output_path, prio_dict=prio,
+                                  bulk_file=bulkvh, meterkast_file=meterkast, bulk=False)
+                    except Exception as e:
+                        error_msg = f"VH failed for {bn}: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                        self._send_message('error', error_msg)
+                        print(error_msg)
 
                 if self.settings['generate_vmg']:
-                    partijen.VMG(df=df_bn, ordernummer=vmgorder, path=output_path, prio_dict=prio,
-                               bulk_file=bulkvmg, bulk=False)
+                    try:
+                        print(f"[DEBUG] Calling VMG for {bn}")
+                        partijen.VMG(df=df_bn, ordernummer=vmgorder, path=output_path, prio_dict=prio,
+                                   bulk_file=bulkvmg, bulk=False)
+                    except Exception as e:
+                        error_msg = f"VMG failed for {bn}: {type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                        self._send_message('error', error_msg)
+                        print(error_msg)
 
             self._send_message('complete', 'Alle CSV bestanden zijn succesvol verwerkt!', 100)
 
         except Exception as e:
-            self._send_message('error', f'Kritieke fout tijdens verwerking: {str(e)}')
+            error_details = (
+                f"Kritieke fout tijdens verwerking:\n"
+                f"Error Type: {type(e).__name__}\n"
+                f"Error Message: {str(e)}\n"
+                f"\nFull Traceback:\n{traceback.format_exc()}"
+            )
+            self._send_message('error', error_details)
+            print(error_details)  # Also print to console for debugging
 
 
 class CSVMappingRow(ttk.Frame):
