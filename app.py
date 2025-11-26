@@ -97,6 +97,12 @@ class ProcessingThread(threading.Thread):
                         df['Projectnummer'] = self.settings['project_number']
                         df['Bouwnummer'] = building_number
 
+                        # Construct Modulenaam from GUI values and CSV Moduletype
+                        df['Modulenaam'] = df.apply(
+                            lambda row: f"{row['Projectnummer']}-{row['Bouwnummer']}-{row['Moduletype']}",
+                            axis=1
+                        )
+
                         df_list.append(df)
 
                         processed_files += 1
@@ -338,7 +344,7 @@ class CSVConverterApp(ttk.Window):
     def __init__(self):
         super().__init__(themename="cosmo")
 
-        self.title("CSV Converter 1.0.2")
+        self.title("CSV Converter 1.0.3")
 
         # Set window icon
         try:

@@ -89,14 +89,6 @@ def csv_to_df(file: str) -> pd.DataFrame:
         except (ValueError, TypeError):
             return "0.0"
 
-    # Fill Modulenaam column with Projectnummer-Bouwnummer-Moduletype
-    df['Modulenaam'] = df.apply(
-        lambda row: f"{row['Projectnummer']}-{row['Bouwnummer']}-{row['Moduletype']}"
-        if pd.isna(row['Modulenaam']) or row['Modulenaam'] == ""
-        else row['Modulenaam'],
-        axis=1
-    )
-
     # Apply preprocessing to DataFrame
     processed_df = pd.DataFrame()
     processed_df['Klant'] = df['Klant']
