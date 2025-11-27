@@ -21,9 +21,10 @@ def BB(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
             nan_count = df[col].isna().sum()
             print(f"  {col}: {nan_count} NaN values")
 
-    print(f"[BB] Line 17: About to filter Voorraad column")
-    print(f"[BB] Voorraad unique values: {df['Voorraad'].unique()[:10]}")
-    df = df[~(df["Voorraad"].str.strip().str.lower() == "ja")]
+    print(f"[BB] Line 17: About to filter by material for milling companies")
+    print(f"[BB] Materiaal unique values: {df['Materiaal'].unique()[:10]}")
+    # Filter for materials that go to milling companies
+    df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF", case=False, na=False)]
 
     print(f"[BB] Line 18: About to apply complex product filters")
     print(f"[BB] Productnaam sample: {df['Productnaam'].head()}")
@@ -110,7 +111,8 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
             print(f"  {col}: {nan_count} NaN values")
 
     print(f"[VH] Lines 105-107: About to apply VH filters")
-    df = df[~(df["Voorraad"].str.strip().str.lower() == "ja")]
+    # Filter for materials that go to milling companies
+    df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF", case=False, na=False)]
     df = df[~(df["Productnaam"].str.contains("LVLQ 90|LVLQ 100|LVLQ 144|LVLQ 69") | ((df["Productnaam"].str.contains("LVLS 45")) & (df["Lengte"] > 3360)) | ((df["Productnaam"].str.contains("SPANO 18")) & (df["Lengte"] > 2700)) | df["Materiaal"].str.contains("BAUB"))]
     df = df[~df["Materiaal"].str.contains("PRO|FERM")]
 
@@ -400,6 +402,12 @@ def ERP(df: pd.DataFrame, path: str) -> None:
     # Translate "Each" back to "unit" in the output
     df_merged["Eenheid"] = df_merged["Eenheid"].replace("Each", "unit")
 
+    # Override Voorraad based on material type
+    # Milling materials (LVLQ, LVLS, CEM, SPANO, PRO, MDF) = "Nee", others = "Ja"
+    df_merged["Voorraad"] = df_merged["Materiaal"].apply(
+        lambda mat: "Nee" if pd.notna(mat) and any(x in str(mat).upper() for x in ["LVLQ", "LVLS", "CEM", "SPANO", "PRO", "MDF"]) else "Ja"
+    )
+
     if 'BuildingStep' in df.columns:
         # Remove the BuildingStep column
         df_merged.drop('BuildingStep', axis=1, inplace=True)
@@ -498,7 +506,8 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
     if df.empty:
         return
 
-    df = df[~(df["Voorraad"].str.strip().str.lower() == "ja")]
+    # Filter for materials that go to milling companies
+    df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF", case=False, na=False)]
 
     if df.empty:
         return
