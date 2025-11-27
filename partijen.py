@@ -396,11 +396,14 @@ def ERP(df: pd.DataFrame, path: str) -> None:
     )
 
     df_merged["IFC-bestand"] = df_merged["IFC-bestand"].str.replace(" ", "_")
-    
+
+    # Translate "Each" back to "unit" in the output
+    df_merged["Eenheid"] = df_merged["Eenheid"].replace("Each", "unit")
+
     if 'BuildingStep' in df.columns:
         # Remove the BuildingStep column
         df_merged.drop('BuildingStep', axis=1, inplace=True)
-    
+
     df_merged.to_csv(f"{path}/{project}-{bouwnummer}-ERP.csv", index=False, sep=";")
 
 
@@ -469,6 +472,9 @@ def WS198(df: pd.DataFrame, path: str) -> None:
             "Dikte",
         ]
     ]
+
+    # Translate "Each" back to "unit" in the output
+    df_ws198["Eenheid"] = df_ws198["Eenheid"].replace("Each", "unit")
 
     df_ws198.to_csv(f"{path}/{project}-{bouwnummer}-WS198.csv", index=False, sep=";")
     
@@ -556,6 +562,9 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
     )
 
     df_merged["IFC-bestand"] = df_merged["IFC-bestand"].str.replace(" ", "_")
+
+    # Translate "Each" back to "unit" in the output
+    df_merged["Eenheid"] = df_merged["Eenheid"].replace("Each", "unit")
 
     if 'BuildingStep' in df_merged.columns:
         # Remove the BuildingStep column

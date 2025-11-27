@@ -783,11 +783,6 @@ class CSVConverterApp(ttk.Window):
 
     def _on_reset(self):
         """Handle reset button click - clear all state and reset UI."""
-        # Don't allow reset during processing
-        if self.is_processing:
-            self._update_status("Kan niet resetten tijdens verwerking...", error=True)
-            return
-
         # Clear all CSV mappings
         for file_path in list(self.csv_mappings.keys()):
             mapping_row = self.csv_mappings[file_path]
@@ -869,6 +864,8 @@ class CSVConverterApp(ttk.Window):
 
                 elif msg_type == 'error':
                     self._update_status(msg_text, error=True)
+                    self.process_btn.config(state='normal')
+                    self.is_processing = False
 
                 elif msg_type == 'complete':
                     self._update_status(msg_text)
