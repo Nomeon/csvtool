@@ -94,8 +94,9 @@ class ProcessingThread(threading.Thread):
                         df = helpers.csv_to_df(file_path)
 
                         # Inject Projectnummer and Bouwnummer columns
-                        df['Projectnummer'] = self.settings['project_number']
-                        df['Bouwnummer'] = building_number
+                        # Force type consistency to string for reliable filtering
+                        df['Projectnummer'] = str(self.settings['project_number'])
+                        df['Bouwnummer'] = str(building_number)
 
                         # Construct Modulenaam from GUI values and CSV Moduletype
                         df['Modulenaam'] = df.apply(
@@ -185,7 +186,8 @@ class ProcessingThread(threading.Thread):
             # Generate per-building outputs
             for idx, bn in enumerate(bns):
                 self._send_message('status', f'Verwerken bouwnummer {bn} ({idx+1}/{len(bns)})...')
-                df_bn = df[df["Bouwnummer"] == bn]
+                # Type-safe filtering - ensure string comparison
+                df_bn = df[df["Bouwnummer"].astype(str) == str(bn)]
 
                 if self.settings['generate_erp']:
                     try:
@@ -344,7 +346,7 @@ class CSVConverterApp(ttk.Window):
     def __init__(self):
         super().__init__(themename="cosmo")
 
-        self.title("CSV Converter 1.0.4")
+        self.title("CSV Converter 1.1.0")
 
         # Set window icon
         try:

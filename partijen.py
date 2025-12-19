@@ -134,13 +134,9 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     df["Bestand"] = (
         "P:\\"
         + str(project)
-        + "\\DWG\\"
-        + df["Materiaal"]
-        + " "
-        + df["Dikte"].astype(int).astype(str)
-        + "\\"
+        + "\\STP\\"
         + df["Productcode"]
-        + ".DWG"
+        + ".ipt.stp"
     )
     df[
         [

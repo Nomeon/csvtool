@@ -91,9 +91,10 @@ def csv_to_df(file: str) -> pd.DataFrame:
 
     # Apply preprocessing to DataFrame
     processed_df = pd.DataFrame()
-    processed_df['Klant'] = df['Klant']
-    processed_df['Projectnummer'] = df['Projectnummer']
-    processed_df['Bouwnummer'] = df['Bouwnummer']
+    # Handle missing columns gracefully (will be overwritten anyway)
+    processed_df['Klant'] = df['Klant'] if 'Klant' in df.columns else ''
+    processed_df['Projectnummer'] = df['Projectnummer'] if 'Projectnummer' in df.columns else ''
+    processed_df['Bouwnummer'] = df['Bouwnummer'] if 'Bouwnummer' in df.columns else ''
     processed_df['Moduletype'] = df['Moduletype']
     processed_df['Modulenaam'] = df['Modulenaam']
     processed_df['IFC-bestand'] = df['IFC-bestand']
