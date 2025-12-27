@@ -14,28 +14,18 @@ def BB(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     """
     project, bouwnummer = df["Projectnummer"].iloc[0], df["Bouwnummer"].iloc[0]
 
-    print(f"[BB] Starting - DataFrame shape: {df.shape}, Bouwnummer: {bouwnummer}")
-    print(f"[BB] Columns with NaN counts:")
-    for col in ['Voorraad', 'Productnaam', 'Materiaal', 'Prio']:
-        if col in df.columns:
-            nan_count = df[col].isna().sum()
-            print(f"  {col}: {nan_count} NaN values")
-
-    print(f"[BB] Line 17: About to filter by material for milling companies")
-    print(f"[BB] Materiaal unique values: {df['Materiaal'].unique()[:10]}")
     # Filter for materials that go to milling companies
     df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF", case=False, na=False)]
-
-    print(f"[BB] Line 18: About to apply complex product filters")
-    print(f"[BB] Productnaam sample: {df['Productnaam'].head()}")
-    print(f"[BB] Materiaal sample: {df['Materiaal'].head()}")
-    df = df[df["Productnaam"].str.contains("LVLQ 90|LVLQ 100|LVLQ 144|LVLQ 69") | ((df["Productnaam"].str.contains("LVLS 45")) & (df["Lengte"] > 3360)) | ((df["Productnaam"].str.contains("SPANO 18")) & (df["Lengte"] > 2700)) | df["Materiaal"].str.contains("BAUB")]
+    df = df[df["Productnaam"].str.contains("LVLQ 90|LVLQ 100|LVLQ 144|LVLQ 69") |
+        ((df["Productnaam"].str.contains("LVLS 45")) & (df["Lengte"] > 3360)) |
+        ((df["Productnaam"].str.contains("SPANO 18")) & (df["Lengte"] > 2700)) |
+        df["Materiaal"].str.contains("BAUB")]
 
     if df.empty:
         return
 
     df = df.astype({"Aantal": "int"})
-    df = df.groupby(df.columns.tolist(), as_index=False).size()
+    df = df.groupby(df.columns.tolist(), as_index=False, dropna=False).size()
     df["Aantal"] = (df["Aantal"] * df["size"]).astype(int)
     df = df.drop("size", axis=1)
 
@@ -103,14 +93,6 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     if bouwnummer.startswith("BN"):
         bouwnummer_kort = bouwnummer.replace("BN", "")
 
-    print(f"[VH] Starting - DataFrame shape: {df.shape}, Bouwnummer: {bouwnummer}")
-    print(f"[VH] Columns with NaN counts:")
-    for col in ['Voorraad', 'Productnaam', 'Materiaal', 'Prio']:
-        if col in df.columns:
-            nan_count = df[col].isna().sum()
-            print(f"  {col}: {nan_count} NaN values")
-
-    print(f"[VH] Lines 105-107: About to apply VH filters")
     # Filter for materials that go to milling companies
     df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF", case=False, na=False)]
     df = df[~(df["Productnaam"].str.contains("LVLQ 90|LVLQ 100|LVLQ 144|LVLQ 69") | ((df["Productnaam"].str.contains("LVLS 45")) & (df["Lengte"] > 3360)) | ((df["Productnaam"].str.contains("SPANO 18")) & (df["Lengte"] > 2700)) | df["Materiaal"].str.contains("BAUB"))]
@@ -267,10 +249,6 @@ def VMG(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_fil
         prio_dict (dict): The dictionary with the priority of the modules.
     """
     project, bouwnummer = df["Projectnummer"].iloc[0], df["Bouwnummer"].iloc[0]
-
-    print(f"[VMG] Starting - DataFrame shape: {df.shape}, Bouwnummer: {bouwnummer}")
-    print(f"[VMG] Materiaal NaN count: {df['Materiaal'].isna().sum()}")
-    print(f"[VMG] Line 272: About to filter Materiaal for PRO|FERM")
     df = df[df["Materiaal"].str.contains("PRO|FERM")]
 
     if df.empty:
@@ -317,7 +295,7 @@ def VMG(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_fil
     df = df.rename(columns={"Productnaam": "Naam"})
 
     df = df.astype({"Aantal": "int"})
-    df = df.groupby(df.columns.tolist(), as_index=False).size()
+    df = df.groupby(df.columns.tolist(), as_index=False, dropna=False).size()
     df["Aantal"] = (df["Aantal"] * df["size"]).astype(int)
     df = df.drop("size", axis=1)
 
@@ -341,9 +319,6 @@ def ERP(df: pd.DataFrame, path: str) -> None:
         path (str): The path to save the CSV file.
     """
     project, bouwnummer = df["Projectnummer"].iloc[0], df["Bouwnummer"].iloc[0]
-
-    print(f"[ERP] Starting - DataFrame shape: {df.shape}, Bouwnummer: {bouwnummer}")
-    print(f"[ERP] Eenheid NaN count: {df['Eenheid'].isna().sum()}")
 
     df_unit = df[df["Eenheid"].isin(["unit", "Each"])]
     df_metric = df[~df["Eenheid"].isin(["unit", "Each"])]
@@ -413,9 +388,6 @@ def ERP(df: pd.DataFrame, path: str) -> None:
 
 def WS198(df: pd.DataFrame, path: str) -> None:
     project, bouwnummer = df["Projectnummer"].iloc[0], df["Bouwnummer"].iloc[0]
-
-    print(f"[WS198] Starting - DataFrame shape: {df.shape}, Bouwnummer: {bouwnummer}")
-    print(f"[WS198] Station NaN count: {df['Station'].isna().sum()}")
 
     # Get all products where "Station" is WS198
     df = df[df["Station"] == "WS198"]
@@ -491,10 +463,6 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
         path (str): The path to save the CSV file.
     """
     project = df["Projectnummer"].iloc[0]
-
-    print(f"[Houtlijst] Starting - DataFrame shape: {df.shape}, Project: {project}")
-    print(f"[Houtlijst] Materiaal NaN count: {df['Materiaal'].isna().sum()}")
-    print(f"[Houtlijst] Line 486: About to filter Materiaal (exclude PRO|FERM)")
 
     # Filter for products that go to Boerboom & Van Hulst (exclude PRO/FERM materials)
     df = df[~df["Materiaal"].str.contains("PRO|FERM", na=False)]
