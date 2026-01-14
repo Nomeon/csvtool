@@ -35,7 +35,6 @@ def BB(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     df = df.replace({"Nesting Prioriteit": prioriteit})
 
     df[["CNC Bewerking", "InkooporderNr"]] = "", ordernummer
-    df["Dikte"] = df["Productnaam"].apply(lambda x: helpers.get_dikte(x)).astype(int)
 
     df["Prio"] = df["Modulenaam"] + "-" + df["Station"]
     for key, value in prio_dict.items():
@@ -101,7 +100,6 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     if df.empty:
         return
 
-    df["Dikte"] = df["Productnaam"].apply(lambda x: helpers.get_dikte(x)).astype(int)
     df["InkooporderNr"] = f"{ordernummer}-{bouwnummer_kort}"
     df["Klant"] = f"geWOONhout {project} {bouwnummer}"
     df["Order"] = (

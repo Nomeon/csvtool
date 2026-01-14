@@ -134,23 +134,6 @@ def combine_dfs(df_list: list) -> pd.DataFrame:
     return df
 
 
-def get_dikte(column: str) -> int:
-    """Gets the dikte from the column.
-
-    Args:
-        column (str): The column.
-
-    Returns:
-        int: The dikte.
-    """
-    match = re.search(r"\d+", column)
-    if match is None:
-        print(f"Warning: No digits found in column name: '{column}'")
-        return 0
-    value = int(match.group())
-    return value
-
-
 def create_nesting(    
     combined_df: pd.DataFrame, prioriteit: pd.DataFrame
 ) -> dict:
