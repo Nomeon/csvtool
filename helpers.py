@@ -43,7 +43,6 @@ def csv_to_df(file: str) -> pd.DataFrame:
     """
 
     df = pd.read_csv(file, sep=';')
-    print(df)
 
     # Data preprocessing functions
     def fix_aantal(qty: str, unit: str) -> float:
@@ -98,13 +97,13 @@ def csv_to_df(file: str) -> pd.DataFrame:
     processed_df['Moduletype'] = df['Moduletype']
     processed_df['Modulenaam'] = df['Modulenaam']
     processed_df['IFC-bestand'] = df['IFC-bestand']
-    processed_df['Productcode'] = df['Productcode']
-    processed_df['Productnaam'] = df['Productnaam']
+    processed_df['Productcode'] = df['Part Number']
+    processed_df['Productnaam'] = df['Description']
     processed_df['Artikelcategorie'] = df['Artikelcategorie']
     processed_df['Dikte'] = df['Dikte'].apply(fix_dimensions)
     processed_df['Breedte'] = df['Breedte'].apply(fix_dimensions)
     processed_df['Lengte'] = df['Lengte'].apply(fix_dimensions)
-    processed_df['Gewicht'] = df.apply(lambda row: fix_weight(row['Mass'], row['Productcode']), axis=1) # Gewicht naar Mass
+    processed_df['Gewicht'] = df.apply(lambda row: fix_weight(row['Mass'], row['Part Number']), axis=1) # Gewicht naar Mass
     processed_df['Materiaal'] = df['Material'] # Materiaal naar Material
     processed_df['Station'] = df['Station']
     processed_df['Aantal'] = df.apply(lambda row: fix_aantal(row['QTY'], row['Base Unit']), axis=1)

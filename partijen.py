@@ -230,10 +230,10 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
         df_deel1 = df[deel1_conditions]
         df_deel2 = df[~deel1_conditions]
         if not df_deel1.empty:
-            df_deel1 = helpers.custom_groupby(df_deel1, ["Order", "OnderdeelNaam", "Productcode"], ["AantalvH"])
+            df_deel1 = helpers.custom_groupby(df_deel1, ["Order", "OnderdeelNaam", "Productcode", "Modulenaam"], ["AantalvH"])
             df_deel1.to_csv(f"{path}/{ordernummer}-{project}-{bouwnummer_kort}-VH-1.csv", index=False, sep=";")
         if not df_deel2.empty:
-            df_deel2 = helpers.custom_groupby(df_deel2, ["Order", "OnderdeelNaam", "Productcode"], ["AantalvH"])
+            df_deel2 = helpers.custom_groupby(df_deel2, ["Order", "OnderdeelNaam", "Productcode", "Modulenaam"], ["AantalvH"])
             df_deel2.to_csv(f"{path}/{ordernummer}-{project}-{bouwnummer_kort}-VH-2.csv", index=False, sep=";")
         
 
