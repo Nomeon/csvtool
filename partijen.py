@@ -32,7 +32,7 @@ def BB(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     df["Nesting Prioriteit"] = df["Moduletype"]
     modules = sorted(df["Moduletype"].unique())
     prioriteit = dict(zip(modules, [x for x in range(len(modules), 0, -1)]))
-    df = df.replace({"Nesting Prioriteit": prioriteit})
+    df["Nesting Prioriteit"] = df["Nesting Prioriteit"].map(prioriteit)
 
     df[["CNC Bewerking", "InkooporderNr"]] = "", ordernummer
 
@@ -199,10 +199,8 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
         & df["Station"].isin(["WS05", "WS114"])
     )
 
-    df_rest = df[~mask]
-    df_binnenwand = df[mask]
-    df_binnenwand["Order"] += "-BW"
-    df = pd.concat([df_rest, df_binnenwand], ignore_index=True, sort=False)
+    df.loc[mask, "Order"] += "-BW"
+    df = pd.concat([df[~mask], df[mask]], ignore_index=True, sort=False)
 
     # Convert modulenaam to string:
     df['Modulenaam'] = df['Modulenaam'].astype(str)
@@ -269,7 +267,7 @@ def VMG(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_fil
     # Drop the BuildingStep column
     df.drop('BuildingStep', axis=1, inplace=True)
     bouwlaag_dict = helpers.bouwlaag_translation()
-    df['Bouwlaag promat'] = df['Bouwlaag promat'].replace(bouwlaag_dict)
+    df['Bouwlaag promat'] = df['Bouwlaag promat'].map(bouwlaag_dict).fillna(df['Bouwlaag promat'])
 
     df["Order"] = ordernummer
     df["Dikte"] = df["Dikte"].astype(int)
@@ -369,7 +367,7 @@ def ERP(df: pd.DataFrame, path: str) -> None:
     df_merged["IFC-bestand"] = df_merged["IFC-bestand"].str.replace(" ", "_")
 
     # Translate "Each" back to "unit" in the output
-    df_merged["Eenheid"] = df_merged["Eenheid"].replace("Each", "unit")
+    df_merged["Eenheid"] = df_merged["Eenheid"].str.replace("Each", "unit", regex=False)
 
     # Override Voorraad based on material type
     # Milling materials (LVLQ, LVLS, CEM, SPANO, PRO, MDF) = "Nee", others = "Ja"
@@ -445,10 +443,10 @@ def WS198(df: pd.DataFrame, path: str) -> None:
             "Lengte",
             "Dikte",
         ]
-    ]
+    ].copy()
 
     # Translate "Each" back to "unit" in the output
-    df_ws198["Eenheid"] = df_ws198["Eenheid"].replace("Each", "unit")
+    df_ws198["Eenheid"] = df_ws198["Eenheid"].str.replace("Each", "unit", regex=False)
 
     df_ws198.to_csv(f"{path}/{project}-{bouwnummer}-WS198.csv", index=False, sep=";")
     
@@ -535,7 +533,7 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
     df_merged["IFC-bestand"] = df_merged["IFC-bestand"].str.replace(" ", "_")
 
     # Translate "Each" back to "unit" in the output
-    df_merged["Eenheid"] = df_merged["Eenheid"].replace("Each", "unit")
+    df_merged["Eenheid"] = df_merged["Eenheid"].str.replace("Each", "unit", regex=False)
 
     if 'BuildingStep' in df_merged.columns:
         # Remove the BuildingStep column
