@@ -346,7 +346,7 @@ class CSVConverterApp(ttk.Window):
     def __init__(self):
         super().__init__(themename="cosmo")
 
-        self.title("CSV Converter 1.3.0")
+        self.title("CSV Converter 1.2.9.1 - Geen Description")
 
         # Set window icon
         try:

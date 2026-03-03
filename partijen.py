@@ -93,7 +93,7 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
         bouwnummer_kort = bouwnummer.replace("BN", "")
 
     # Filter for materials that go to milling companies
-    df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF", case=False, na=False)]
+    df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF|SPAVA", case=False, na=False)]
     df = df[~(df["Productnaam"].str.contains("LVLQ 90|LVLQ 100|LVLQ 144|LVLQ 69") | ((df["Productnaam"].str.contains("LVLS 45")) & (df["Lengte"] > 3360)) | ((df["Productnaam"].str.contains("SPANO 18")) & (df["Lengte"] > 2700)) | df["Materiaal"].str.contains("BAUB"))]
     df = df[~df["Materiaal"].str.contains("PRO|FERM")]
 
@@ -364,7 +364,7 @@ def ERP(df: pd.DataFrame, path: str) -> None:
         }
     )
 
-    df_merged["IFC-bestand"] = df_merged["IFC-bestand"].str.replace(" ", "_")
+    df_merged["IFC-bestand"] = df_merged["IFC-bestand"].fillna("").astype(str).str.replace(" ", "_")
 
     # Translate "Each" back to "unit" in the output
     df_merged["Eenheid"] = df_merged["Eenheid"].str.replace("Each", "unit", regex=False)
@@ -467,7 +467,7 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
         return
 
     # Filter for materials that go to milling companies
-    df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF", case=False, na=False)]
+    df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF|SPAVA", case=False, na=False)]
 
     if df.empty:
         return
@@ -530,7 +530,7 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
         }
     )
 
-    df_merged["IFC-bestand"] = df_merged["IFC-bestand"].str.replace(" ", "_")
+    df_merged["IFC-bestand"] = df_merged["IFC-bestand"].fillna("").astype(str).str.replace(" ", "_")
 
     # Translate "Each" back to "unit" in the output
     df_merged["Eenheid"] = df_merged["Eenheid"].str.replace("Each", "unit", regex=False)
