@@ -98,7 +98,7 @@ def csv_to_df(file: str) -> pd.DataFrame:
     processed_df['Modulenaam'] = df['Modulenaam']
     processed_df['IFC-bestand'] = df['IFC-bestand']
     processed_df['Productcode'] = df['Part Number']
-    processed_df['Productnaam'] = df['Productnaam']
+    processed_df['Productnaam'] = df['Productnaam'] # Description
     processed_df['Artikelcategorie'] = df['Artikelcategorie']
     processed_df['Dikte'] = df['Dikte'].apply(fix_dimensions)
     processed_df['Breedte'] = df['Breedte'].apply(fix_dimensions)
@@ -129,6 +129,8 @@ def combine_dfs(df_list: list) -> pd.DataFrame:
         ["Dikte", "Breedte", "Lengte", "Gewicht", "Aantal"]
     ].apply(pd.to_numeric)
     df = df.round({"Dikte": 1, "Lengte": 1, "Breedte": 1})
+    df['Station'] = df['Station'].fillna('').astype(str).str.strip()
+    df = df[df['Station'] != '']
     df = df[~df['Station'].isin(['WS99', 'WS199'])]
     return df
 
