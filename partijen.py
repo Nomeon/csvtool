@@ -2,7 +2,55 @@ import pandas as pd
 import numpy as np
 import helpers
 
-def BB(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file: list, bulk: bool) -> None:
+
+def material_filter_rule(
+    df: pd.DataFrame, supplier: str, include_spava: bool = False
+) -> pd.Series:
+    """Returns the full BB/VH material filter rule in one editable block."""
+    milling_materials = "LVLQ|LVLS|CEM|SPANO|PRO|MDF"
+    if include_spava:
+        milling_materials = f"{milling_materials}|SPAVA"
+
+    boerboom_rule = df["Materiaal"].str.contains(
+        milling_materials, case=False, na=False
+    ) & (
+        (
+            df["Productnaam"].str.contains("LVLQ", case=False, na=False)
+            & df["Dikte"].isin([90, 100, 144, 69])
+        )
+        | (
+            df["Productnaam"].str.contains("LVLS", case=False, na=False)
+            & df["Dikte"].isin([45])
+            & (df["Lengte"] > 3360)
+        )
+        | (
+            df["Productnaam"].str.contains("SPANO", case=False, na=False)
+            & df["Dikte"].isin([18])
+            & (df["Lengte"] > 2700)
+        )
+        | df["Materiaal"].str.contains("BAUB", case=False, na=False)
+    )
+
+    if supplier == "BB":
+        return boerboom_rule
+    if supplier == "VH":
+        return (
+            df["Materiaal"].str.contains(
+                "LVLQ|LVLS|CEM|SPANO|PRO|MDF|SPAVA", case=False, na=False
+            )
+            & ~boerboom_rule
+        )
+    raise ValueError(f"Unknown supplier: {supplier}")
+
+
+def BB(
+    df: pd.DataFrame,
+    ordernummer: str,
+    path: str,
+    prio_dict: dict,
+    bulk_file: list,
+    bulk: bool,
+) -> None:
     """Gets the BB parts from the dataframe and saves it to a CSV file.
 
     Args:
@@ -15,11 +63,7 @@ def BB(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     project, bouwnummer = df["Projectnummer"].iloc[0], df["Bouwnummer"].iloc[0]
 
     # Filter for materials that go to milling companies
-    df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF", case=False, na=False)]
-    df = df[df["Productnaam"].str.contains("LVLQ 90|LVLQ 100|LVLQ 144|LVLQ 69") |
-        ((df["Productnaam"].str.contains("LVLS 45")) & (df["Lengte"] > 3360)) |
-        ((df["Productnaam"].str.contains("SPANO 18")) & (df["Lengte"] > 2700)) |
-        df["Materiaal"].str.contains("BAUB")]
+    df = df[material_filter_rule(df, "BB")]
 
     if df.empty:
         return
@@ -67,16 +111,29 @@ def BB(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     # Normaal-Normaal, bulk = False and casettes = False, BN
     if not bulk:
         df = df[~df["Productcode"].isin(bulk_file)]
-        df.to_csv(f"{path}/{ordernummer}-{project}-{bouwnummer}-BB.csv", index=False, sep=";")
+        df.to_csv(
+            f"{path}/{ordernummer}-{project}-{bouwnummer}-BB.csv", index=False, sep=";"
+        )
 
     # Normaal-Bulk, bulk = True and casettes = False, BATCH
     elif bulk:
         df_bulk = df[df["Productcode"].isin(bulk_file)]
         if not df_bulk.empty:
-            df_bulk.to_csv(f"{path}/{ordernummer}-{project}-BB-BULK.csv", index=False, sep=";")
+            df_bulk.to_csv(
+                f"{path}/{ordernummer}-{project}-BB-BULK.csv", index=False, sep=";"
+            )
 
 
-def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file: list,  meterkast_file: list, bulk: bool, meterkast: bool=False) -> None:
+def VH(
+    df: pd.DataFrame,
+    ordernummer: str,
+    path: str,
+    prio_dict: dict,
+    bulk_file: list,
+    meterkast_file: list,
+    bulk: bool,
+    meterkast: bool = False,
+) -> None:
     """Gets the Van Hulst parts from the dataframe and saves it to a CSV file.
 
     Args:
@@ -93,8 +150,7 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
         bouwnummer_kort = bouwnummer.replace("BN", "")
 
     # Filter for materials that go to milling companies
-    df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF|SPAVA", case=False, na=False)]
-    df = df[~(df["Productnaam"].str.contains("LVLQ 90|LVLQ 100|LVLQ 144|LVLQ 69") | ((df["Productnaam"].str.contains("LVLS 45")) & (df["Lengte"] > 3360)) | ((df["Productnaam"].str.contains("SPANO 18")) & (df["Lengte"] > 2700)) | df["Materiaal"].str.contains("BAUB"))]
+    df = df[material_filter_rule(df, "VH")]
     df = df[~df["Materiaal"].str.contains("PRO|FERM")]
 
     if df.empty:
@@ -111,13 +167,7 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
         + " "
         + df["Dikte"].astype(int).astype(str)
     )
-    df["Bestand"] = (
-        "P:\\"
-        + str(project)
-        + "\\STP\\"
-        + df["Productcode"]
-        + ".ipt.stp"
-    )
+    df["Bestand"] = "P:\\" + str(project) + "\\STP\\" + df["Productcode"] + ".ipt.stp"
     df[
         [
             "Configuratie",
@@ -187,10 +237,18 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     )
 
     # Add WS to order number if CEM10, SPANO 10, SPANO 18
-    df.loc[df['Order'].str.contains('CEM10|SPANO 10|SPANO 18', na=False), 'Order'] = df['Order'] + '-' + df['Station']
-    
+    df.loc[df["Order"].str.contains("CEM10|SPANO 10|SPANO 18", na=False), "Order"] = (
+        df["Order"] + "-" + df["Station"]
+    )
+
     # Add WS101WS102 to LVLS 45 if station is WS101 or WS102
-    df.loc[df['Order'].str.contains('LVLS 45', na=False) & df['Station'].isin(['WS101', 'WS102']), 'Order'] = df['Order'] + '-WS101WS102'
+    df.loc[
+        df["Order"].str.contains("LVLS 45", na=False)
+        & df["Station"].isin(["WS101", "WS102"]),
+        "Order",
+    ] = (
+        df["Order"] + "-WS101WS102"
+    )
 
     # Add -BW to the order number for binnenwanden, checken of dit mag voor alles.
     mask = (
@@ -203,39 +261,72 @@ def VH(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file
     df = pd.concat([df[~mask], df[mask]], ignore_index=True, sort=False)
 
     # Convert modulenaam to string:
-    df['Modulenaam'] = df['Modulenaam'].astype(str)
+    df["Modulenaam"] = df["Modulenaam"].astype(str)
 
     # Meterkast CSV
     df_meterkast = df[df["Productcode"].isin(meterkast_file)]
     df = df[~df["Productcode"].isin(meterkast_file)]
     if not df_meterkast.empty and meterkast:
-        df_meterkast.to_csv(f"{path}/{ordernummer}-{project}-VH-METERKAST.csv", index=False, sep=";")
-        
+        df_meterkast.to_csv(
+            f"{path}/{ordernummer}-{project}-VH-METERKAST.csv", index=False, sep=";"
+        )
+
     if bulk:
         df_bulk = df[df["Productcode"].isin(bulk_file)]
         df_bulk["Modulenaam"] = str(project) + "-BULK"
         if not df_bulk.empty:
-            df_bulk = helpers.custom_groupby(df_bulk, ["Order", "OnderdeelNaam", "Productcode"], ["AantalvH"])
-            df_bulk.to_csv(f"{path}/{ordernummer}-{project}-VH-BULK.csv", index=False, sep=";")
+            df_bulk = helpers.custom_groupby(
+                df_bulk, ["Order", "OnderdeelNaam", "Productcode"], ["AantalvH"]
+            )
+            df_bulk.to_csv(
+                f"{path}/{ordernummer}-{project}-VH-BULK.csv", index=False, sep=";"
+            )
     else:
         df = df[~df["Productcode"].isin(bulk_file)]
-        
+
         # Split it on deel 1 and deel 2 based on the following rules:
         # - up to and including WS106 -> deel 1
         # - from WS107 and higher -> deel 2
         # - Name contains LVLS 63, LVLQ 21, LVLQ 75, MDF 18, MDFO 18 -> deel 1
-        deel1_conditions = (df["Station"].str.extract(r'WS(\d+)', expand=False).astype(float) <= 106) | df["OnderdeelNaam"].str.contains("LVLS 63|LVLQ 21|LVLQ 75|MDF 18|MDFO 18", na=False)
+        deel1_conditions = (
+            df["Station"].str.extract(r"WS(\d+)", expand=False).astype(float) <= 106
+        ) | df["OnderdeelNaam"].str.contains(
+            "LVLS 63|LVLQ 21|LVLQ 75|MDF 18|MDFO 18", na=False
+        )
         df_deel1 = df[deel1_conditions]
         df_deel2 = df[~deel1_conditions]
         if not df_deel1.empty:
-            df_deel1 = helpers.custom_groupby(df_deel1, ["Order", "OnderdeelNaam", "Productcode", "Modulenaam"], ["AantalvH"])
-            df_deel1.to_csv(f"{path}/{ordernummer}-{project}-{bouwnummer_kort}-VH-1.csv", index=False, sep=";")
+            df_deel1 = helpers.custom_groupby(
+                df_deel1,
+                ["Order", "OnderdeelNaam", "Productcode", "Modulenaam"],
+                ["AantalvH"],
+            )
+            df_deel1.to_csv(
+                f"{path}/{ordernummer}-{project}-{bouwnummer_kort}-VH-1.csv",
+                index=False,
+                sep=";",
+            )
         if not df_deel2.empty:
-            df_deel2 = helpers.custom_groupby(df_deel2, ["Order", "OnderdeelNaam", "Productcode", "Modulenaam"], ["AantalvH"])
-            df_deel2.to_csv(f"{path}/{ordernummer}-{project}-{bouwnummer_kort}-VH-2.csv", index=False, sep=";")
-        
+            df_deel2 = helpers.custom_groupby(
+                df_deel2,
+                ["Order", "OnderdeelNaam", "Productcode", "Modulenaam"],
+                ["AantalvH"],
+            )
+            df_deel2.to_csv(
+                f"{path}/{ordernummer}-{project}-{bouwnummer_kort}-VH-2.csv",
+                index=False,
+                sep=";",
+            )
 
-def VMG(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_file: list, bulk: bool) -> None:
+
+def VMG(
+    df: pd.DataFrame,
+    ordernummer: str,
+    path: str,
+    prio_dict: dict,
+    bulk_file: list,
+    bulk: bool,
+) -> None:
     """Gets the VMG parts from the dataframe and saves it to a CSV file.
 
     Args:
@@ -249,25 +340,27 @@ def VMG(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_fil
 
     if df.empty:
         return
-    
+
     df["Nesting Prioriteit"] = df["Moduletype"]
     df["Prio"] = df["Modulenaam"] + "-" + df["Station"]
     for key, value in prio_dict.items():
         df.loc[df["Prio"].str.contains(key, na=False), "Nesting Prioriteit"] = value
-    
-    df['Bouwlaag promat'] = ''
+
+    df["Bouwlaag promat"] = ""
 
     # If BuildingStep row is not empty, split the string and get the bouwlaag
     for index, row in df.iterrows():
-        if row['BuildingStep'] == '':
+        if row["BuildingStep"] == "":
             continue
-        df.at[index, 'Bouwlaag promat'] = row['BuildingStep'].split('_')[1]
+        df.at[index, "Bouwlaag promat"] = row["BuildingStep"].split("_")[1]
 
         # df['Bouwlaag promat'] = df['BuildingStep'].str.split('_').str[1]
     # Drop the BuildingStep column
-    df.drop('BuildingStep', axis=1, inplace=True)
+    df.drop("BuildingStep", axis=1, inplace=True)
     bouwlaag_dict = helpers.bouwlaag_translation()
-    df['Bouwlaag promat'] = df['Bouwlaag promat'].map(bouwlaag_dict).fillna(df['Bouwlaag promat'])
+    df["Bouwlaag promat"] = (
+        df["Bouwlaag promat"].map(bouwlaag_dict).fillna(df["Bouwlaag promat"])
+    )
 
     df["Order"] = ordernummer
     df["Dikte"] = df["Dikte"].astype(int)
@@ -298,13 +391,17 @@ def VMG(df: pd.DataFrame, ordernummer: str, path: str, prio_dict: dict, bulk_fil
     # Normaal-Normaal, bulk = False and casettes = False, BN
     if not bulk:
         df = df[~df["Productcode"].isin(bulk_file)]
-        df.to_csv(f"{path}/{ordernummer}-{project}-{bouwnummer}-VMG.csv", index=False, sep=";")
+        df.to_csv(
+            f"{path}/{ordernummer}-{project}-{bouwnummer}-VMG.csv", index=False, sep=";"
+        )
 
     # Normaal-Bulk, bulk = True and casettes = False, BATCH
     elif bulk:
         df_bulk = df[df["Productcode"].isin(bulk_file)]
         if not df_bulk.empty:
-            df_bulk.to_csv(f"{path}/{ordernummer}-{project}-VMG-BULK.csv", index=False, sep=";")
+            df_bulk.to_csv(
+                f"{path}/{ordernummer}-{project}-VMG-BULK.csv", index=False, sep=";"
+            )
 
 
 def ERP(df: pd.DataFrame, path: str) -> None:
@@ -320,7 +417,9 @@ def ERP(df: pd.DataFrame, path: str) -> None:
     df_metric = df[~df["Eenheid"].isin(["unit", "Each"])]
 
     # Compression on units
-    df_unit = df_unit.sort_values(by=["Productnaam", "Station", "Dikte", "Breedte", "Lengte"])
+    df_unit = df_unit.sort_values(
+        by=["Productnaam", "Station", "Dikte", "Breedte", "Lengte"]
+    )
     df_unit = df_unit.groupby(
         ["Productcode", "Productnaam", "Moduletype", "Materiaal", "Station", "Eenheid"],
         as_index=False,
@@ -344,9 +443,11 @@ def ERP(df: pd.DataFrame, path: str) -> None:
         dict(
             map(
                 (
-                    lambda x: (x, "sum")
-                    if x == "Aantal"
-                    else ((x, "sum") if x == "Gewicht" else (x, "first"))
+                    lambda x: (
+                        (x, "sum")
+                        if x == "Aantal"
+                        else ((x, "sum") if x == "Gewicht" else (x, "first"))
+                    )
                 ),
                 df_metric.columns.tolist(),
             )
@@ -364,7 +465,9 @@ def ERP(df: pd.DataFrame, path: str) -> None:
         }
     )
 
-    df_merged["IFC-bestand"] = df_merged["IFC-bestand"].fillna("").astype(str).str.replace(" ", "_")
+    df_merged["IFC-bestand"] = (
+        df_merged["IFC-bestand"].fillna("").astype(str).str.replace(" ", "_")
+    )
 
     # Translate "Each" back to "unit" in the output
     df_merged["Eenheid"] = df_merged["Eenheid"].str.replace("Each", "unit", regex=False)
@@ -372,12 +475,20 @@ def ERP(df: pd.DataFrame, path: str) -> None:
     # Override Voorraad based on material type
     # Milling materials (LVLQ, LVLS, CEM, SPANO, PRO, MDF) = "Nee", others = "Ja"
     df_merged["Voorraad"] = df_merged["Materiaal"].apply(
-        lambda mat: "Nee" if pd.notna(mat) and any(x in str(mat).upper() for x in ["LVLQ", "LVLS", "CEM", "SPANO", "PRO", "MDF"]) else "Ja"
+        lambda mat: (
+            "Nee"
+            if pd.notna(mat)
+            and any(
+                x in str(mat).upper()
+                for x in ["LVLQ", "LVLS", "CEM", "SPANO", "PRO", "MDF"]
+            )
+            else "Ja"
+        )
     )
 
-    if 'BuildingStep' in df.columns:
+    if "BuildingStep" in df.columns:
         # Remove the BuildingStep column
-        df_merged.drop('BuildingStep', axis=1, inplace=True)
+        df_merged.drop("BuildingStep", axis=1, inplace=True)
 
     df_merged.to_csv(f"{path}/{project}-{bouwnummer}-ERP.csv", index=False, sep=";")
 
@@ -394,7 +505,9 @@ def WS198(df: pd.DataFrame, path: str) -> None:
     df_metric = df[~df["Eenheid"].isin(["unit", "Each"])]
 
     # Compression on units
-    df_unit = df_unit.sort_values(by=["Productnaam", "Station", "Dikte", "Breedte", "Lengte"])
+    df_unit = df_unit.sort_values(
+        by=["Productnaam", "Station", "Dikte", "Breedte", "Lengte"]
+    )
     df_unit = df_unit.groupby(
         ["Productcode", "Productnaam", "Moduletype", "Materiaal", "Station", "Eenheid"],
         as_index=False,
@@ -418,9 +531,11 @@ def WS198(df: pd.DataFrame, path: str) -> None:
         dict(
             map(
                 (
-                    lambda x: (x, "sum")
-                    if x == "Aantal"
-                    else ((x, "sum") if x == "Gewicht" else (x, "first"))
+                    lambda x: (
+                        (x, "sum")
+                        if x == "Aantal"
+                        else ((x, "sum") if x == "Gewicht" else (x, "first"))
+                    )
                 ),
                 df_metric.columns.tolist(),
             )
@@ -449,7 +564,7 @@ def WS198(df: pd.DataFrame, path: str) -> None:
     df_ws198["Eenheid"] = df_ws198["Eenheid"].str.replace("Each", "unit", regex=False)
 
     df_ws198.to_csv(f"{path}/{project}-{bouwnummer}-WS198.csv", index=False, sep=";")
-    
+
 
 def Houtlijst(df: pd.DataFrame, path: str) -> None:
     """Gets the Van Hulst & Boerboom parts from the dataframe and saves it to a CSV file. Use the same file structure as ERP.
@@ -467,26 +582,25 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
         return
 
     # Filter for materials that go to milling companies
-    df = df[df["Materiaal"].str.contains("LVLQ|LVLS|CEM|SPANO|PRO|MDF|SPAVA", case=False, na=False)]
+    df = df[
+        material_filter_rule(df, "BB", include_spava=True)
+        | material_filter_rule(df, "VH")
+    ]
 
     if df.empty:
         return
 
     # Determine Leverancier (BB or VH) based on product characteristics
-    # BB criteria: LVLQ 90/100/144/69, LVLS 45 (>3360mm), SPANO 18 (>2700mm), or BAUB material
-    bb_mask = (
-        df["Productnaam"].str.contains("LVLQ 90|LVLQ 100|LVLQ 144|LVLQ 69") |
-        ((df["Productnaam"].str.contains("LVLS 45")) & (df["Lengte"] > 3360)) |
-        ((df["Productnaam"].str.contains("SPANO 18")) & (df["Lengte"] > 2700)) |
-        df["Materiaal"].str.contains("BAUB")
-    )
+    bb_mask = material_filter_rule(df, "BB", include_spava=True)
     df["Leverancier"] = np.where(bb_mask, "BB", "VH")
 
     df_unit = df[df["Eenheid"].isin(["unit", "Each"])]
     df_metric = df[~df["Eenheid"].isin(["unit", "Each"])]
 
     # Compression on units
-    df_unit = df_unit.sort_values(by=["Productnaam", "Station", "Dikte", "Breedte", "Lengte"])
+    df_unit = df_unit.sort_values(
+        by=["Productnaam", "Station", "Dikte", "Breedte", "Lengte"]
+    )
     df_unit = df_unit.groupby(
         ["Productcode", "Productnaam", "Moduletype", "Materiaal", "Station", "Eenheid"],
         as_index=False,
@@ -510,9 +624,11 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
         dict(
             map(
                 (
-                    lambda x: (x, "sum")
-                    if x == "Aantal"
-                    else ((x, "sum") if x == "Gewicht" else (x, "first"))
+                    lambda x: (
+                        (x, "sum")
+                        if x == "Aantal"
+                        else ((x, "sum") if x == "Gewicht" else (x, "first"))
+                    )
                 ),
                 df_metric.columns.tolist(),
             )
@@ -530,13 +646,15 @@ def Houtlijst(df: pd.DataFrame, path: str) -> None:
         }
     )
 
-    df_merged["IFC-bestand"] = df_merged["IFC-bestand"].fillna("").astype(str).str.replace(" ", "_")
+    df_merged["IFC-bestand"] = (
+        df_merged["IFC-bestand"].fillna("").astype(str).str.replace(" ", "_")
+    )
 
     # Translate "Each" back to "unit" in the output
     df_merged["Eenheid"] = df_merged["Eenheid"].str.replace("Each", "unit", regex=False)
 
-    if 'BuildingStep' in df_merged.columns:
+    if "BuildingStep" in df_merged.columns:
         # Remove the BuildingStep column
-        df_merged.drop('BuildingStep', axis=1, inplace=True)
+        df_merged.drop("BuildingStep", axis=1, inplace=True)
 
     df_merged.to_csv(f"{path}/{project}-HOUTLIJST.csv", index=False, sep=";")

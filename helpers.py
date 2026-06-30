@@ -5,6 +5,7 @@ import glob
 import pandas as pd
 from itertools import product
 
+
 def resource_path(path: str) -> str:
     """Convert relative path to absolute path
 
@@ -13,7 +14,7 @@ def resource_path(path: str) -> str:
 
     Returns:
         str: Absolute path
-    """    
+    """
     base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     complete_path = os.path.join(base_path, path)
     return complete_path
@@ -31,7 +32,6 @@ def get_input_list(path: str) -> list:
     return [csv for csv in glob.glob(f"{path}/*csv")]
 
 
-
 def csv_to_df(file: str) -> pd.DataFrame:
     """Converts an Input CSV file to a dataframe.
 
@@ -42,7 +42,7 @@ def csv_to_df(file: str) -> pd.DataFrame:
         pd.DataFrame: The dataframe with all the parts.
     """
 
-    df = pd.read_csv(file, sep=';')
+    df = pd.read_csv(file, sep=";")
 
     # Data preprocessing functions
     def fix_aantal(qty: str, unit: str) -> float:
@@ -91,26 +91,33 @@ def csv_to_df(file: str) -> pd.DataFrame:
     # Apply preprocessing to DataFrame
     processed_df = pd.DataFrame()
     # Handle missing columns gracefully (will be overwritten anyway)
-    processed_df['Klant'] = df['Klant'] if 'Klant' in df.columns else ''
-    processed_df['Projectnummer'] = df['Projectnummer'] if 'Projectnummer' in df.columns else ''
-    processed_df['Bouwnummer'] = df['Bouwnummer'] if 'Bouwnummer' in df.columns else ''
-    processed_df['Moduletype'] = df['Moduletype']
-    processed_df['Modulenaam'] = df['Modulenaam']
-    processed_df['IFC-bestand'] = df['IFC-bestand']
-    processed_df['Productcode'] = df['Part Number']
-    processed_df['Productnaam'] = df['Productnaam'] # Description
-    processed_df['Artikelcategorie'] = df['Artikelcategorie']
-    processed_df['Dikte'] = df['Dikte'].apply(fix_dimensions)
-    processed_df['Breedte'] = df['Breedte'].apply(fix_dimensions)
-    processed_df['Lengte'] = df['Lengte'].apply(fix_dimensions)
-    processed_df['Gewicht'] = df.apply(lambda row: fix_weight(row['Mass'], row['Part Number']), axis=1) # Gewicht naar Mass
-    processed_df['Materiaal'] = df['Material'] # Materiaal naar Material
-    processed_df['Station'] = df['Station']
-    processed_df['Aantal'] = df.apply(lambda row: fix_aantal(row['QTY'], row['Base Unit']), axis=1)
-    processed_df['Eenheid'] = df['Base Unit'] # Eenheid naar Base Unit
-    processed_df['Voorraad'] = df['Voorraad']
+    processed_df["Klant"] = df["Klant"] if "Klant" in df.columns else ""
+    processed_df["Projectnummer"] = (
+        df["Projectnummer"] if "Projectnummer" in df.columns else ""
+    )
+    processed_df["Bouwnummer"] = df["Bouwnummer"] if "Bouwnummer" in df.columns else ""
+    processed_df["Moduletype"] = df["Moduletype"]
+    processed_df["Modulenaam"] = df["Modulenaam"]
+    processed_df["IFC-bestand"] = df["IFC-bestand"]
+    processed_df["Productcode"] = df["Part Number"]
+    processed_df["Productnaam"] = df["Productnaam"]
+    processed_df["Artikelcategorie"] = df["Artikelcategorie"]
+    processed_df["Dikte"] = df["Dikte"].apply(fix_dimensions)
+    processed_df["Breedte"] = df["Breedte"].apply(fix_dimensions)
+    processed_df["Lengte"] = df["Lengte"].apply(fix_dimensions)
+    processed_df["Gewicht"] = df.apply(
+        lambda row: fix_weight(row["Mass"], row["Part Number"]), axis=1
+    )  # Gewicht naar Mass
+    processed_df["Materiaal"] = df["Material"]  # Materiaal naar Material
+    processed_df["Station"] = df["Station"]
+    processed_df["Aantal"] = df.apply(
+        lambda row: fix_aantal(row["QTY"], row["Base Unit"]), axis=1
+    )
+    processed_df["Eenheid"] = df["Base Unit"]  # Eenheid naar Base Unit
+    processed_df["Voorraad"] = df["Voorraad"]
 
     return processed_df
+
 
 def combine_dfs(df_list: list) -> pd.DataFrame:
     """Combines a list of dataframes to one dataframe.
@@ -129,15 +136,13 @@ def combine_dfs(df_list: list) -> pd.DataFrame:
         ["Dikte", "Breedte", "Lengte", "Gewicht", "Aantal"]
     ].apply(pd.to_numeric)
     df = df.round({"Dikte": 1, "Lengte": 1, "Breedte": 1})
-    df['Station'] = df['Station'].fillna('').astype(str).str.strip()
-    df = df[df['Station'] != '']
-    df = df[~df['Station'].isin(['WS99', 'WS199'])]
+    df["Station"] = df["Station"].fillna("").astype(str).str.strip()
+    df = df[df["Station"] != ""]
+    df = df[~df["Station"].isin(["WS99", "WS199"])]
     return df
 
 
-def create_nesting(    
-    combined_df: pd.DataFrame, prioriteit: pd.DataFrame
-) -> dict:
+def create_nesting(combined_df: pd.DataFrame, prioriteit: pd.DataFrame) -> dict:
     """Creates a dictionary with the nesting priority.
 
     Args:
@@ -168,7 +173,7 @@ def create_nesting(
         for bn, mt, ws in product(sorted(bouwnummers), mods, sorted_werkstations):
             row = f"{project}-{bn}-{mt}-{ws}"
             data.append({"Naam": row})
-        
+
         for i in range(len(data)):
             data[i]["Prio"] = i
         df_prio = pd.DataFrame(data)
@@ -198,6 +203,7 @@ def create_nesting(
 
     prio_dict = dict(zip(df_prio.Naam, df_prio.Prio))
     return prio_dict
+
 
 def bouwlaag_translation() -> dict:
     """Gives the dictionary to shorten the description of bouwlaag.
@@ -255,11 +261,11 @@ def custom_groupby(df, groupby_cols, sum_cols):
     agg_dict = {}
 
     for col in sum_cols:
-        agg_dict[col] = 'sum'
+        agg_dict[col] = "sum"
 
     for col in df.columns:
         if col not in sum_cols and col not in groupby_cols:
-            agg_dict[col] = 'first'
+            agg_dict[col] = "first"
 
     df_grouped = df.groupby(groupby_cols, as_index=False).agg(agg_dict)
     df_grouped = df_grouped[columns]
