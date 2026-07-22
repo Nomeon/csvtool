@@ -7,7 +7,7 @@ def material_filter_rule(
     df: pd.DataFrame, supplier: str, include_spava: bool = False
 ) -> pd.Series:
     """Returns the full BB/VH material filter rule in one editable block."""
-    milling_materials = "LVLQ|LVLS|CEM|SPANO|PRO|MDF"
+    milling_materials = "LVLQ|LVLS|LVLT|CEM|SPANO|PRO|MDF"
     if include_spava:
         milling_materials = f"{milling_materials}|SPAVA"
 
@@ -36,7 +36,7 @@ def material_filter_rule(
     if supplier == "VH":
         return (
             df["Materiaal"].str.contains(
-                "LVLQ|LVLS|CEM|SPANO|PRO|MDF|SPAVA", case=False, na=False
+                "LVLQ|LVLS|LVLT|CEM|SPANO|PRO|MDF|SPAVA", case=False, na=False
             )
             & ~boerboom_rule
         )
@@ -473,14 +473,14 @@ def ERP(df: pd.DataFrame, path: str) -> None:
     df_merged["Eenheid"] = df_merged["Eenheid"].str.replace("Each", "unit", regex=False)
 
     # Override Voorraad based on material type
-    # Milling materials (LVLQ, LVLS, CEM, SPANO, PRO, MDF) = "Nee", others = "Ja"
+    # Milling materials (LVLQ, LVLS, LVLT, CEM, SPANO, PRO, MDF) = "Nee", others = "Ja"
     df_merged["Voorraad"] = df_merged["Materiaal"].apply(
         lambda mat: (
             "Nee"
             if pd.notna(mat)
             and any(
                 x in str(mat).upper()
-                for x in ["LVLQ", "LVLS", "CEM", "SPANO", "PRO", "MDF"]
+                for x in ["LVLQ", "LVLS", "LVLT", "CEM", "SPANO", "PRO", "MDF"]
             )
             else "Ja"
         )
