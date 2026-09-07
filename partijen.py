@@ -288,10 +288,13 @@ def VH(
         # - up to and including WS106 -> deel 1
         # - from WS107 and higher -> deel 2
         # - Name contains LVLS 63, LVLQ 21, LVLQ 75, MDF 18, MDFO 18 -> deel 1
+        # - Name contains SPANO 10 BOVENPLAAT (case-insensitive) -> deel 1
         deel1_conditions = (
             df["Station"].str.extract(r"WS(\d+)", expand=False).astype(float) <= 106
         ) | df["OnderdeelNaam"].str.contains(
             "LVLS 63|LVLQ 21|LVLQ 75|MDF 18|MDFO 18", na=False
+        ) | df["OnderdeelNaam"].str.contains(
+            "SPANO 10 BOVENPLAAT", case=False, na=False, regex=False
         )
         df_deel1 = df[deel1_conditions]
         df_deel2 = df[~deel1_conditions]
